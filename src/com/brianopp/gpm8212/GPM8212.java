@@ -21,11 +21,10 @@ package com.brianopp.gpm8212;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
-import com.google.common.base.Preconditions;
-
-import app.Com;
-import app.Parameters;
+import com.google.common.base.Throwables;
 
 /**
  * A class for communicating with a GWInstek GPM-8212.
@@ -83,25 +82,30 @@ public class GPM8212 implements Closeable {
   /** the character that terminates outgoing and incoming messages */
   private static final char STOP_CHARACTER = 0x0D;
 
-  /** communications port for the serial interface */
-  private Com port;
+  /** the {@link InputStream} to send commands on */
+  private InputStream inputStream;
+
+  /** the {@link OutputStream} to receive commands on */
+  private OutputStream outputStream;
 
   /**
-   * Constructs a new {@link GPM8212} to communicate on the given {@link Com} port.
+   * Constructs a new {@link GPM8212} object communicating over the given streams.
    *
-   * @param port the {@link Com} object to communicate on the serial port
+   * @param inputStream the {@link InputStream} to send commands on
+   * @param outputStream the {@link OutputStream} to receive commands on
    */
-  public GPM8212(Com port) {
-    this.port = port;
+  public GPM8212(InputStream inputStream, OutputStream outputStream) {
+    this.inputStream = inputStream;
+    this.outputStream = outputStream;
   }
 
   /**
    * Sets whether or not the data hold option is enabled.
    *
    * @param enable should the data hold option be enabled
-   * @throws Exception on any exception sending the command
+   * @throws IOException on any exception sending the command
    */
-  public void setDataHoldEnabled(boolean enable) throws Exception {
+  public void setDataHoldEnabled(boolean enable) throws IOException {
     if (enable) {
       this.sendCommand("F00");
     } else {
@@ -113,9 +117,9 @@ public class GPM8212 implements Closeable {
    * Sets the measurement status option. 
    *
    * @param measurementStatus the type of measurement to be taking
-   * @throws Exception on any exception sending the command
+   * @throws IOException on any exception sending the command
    */
-  public void setMeasurementStatus(MeasurementStatus measurementStatus) throws Exception {
+  public void setMeasurementStatus(MeasurementStatus measurementStatus) throws IOException {
     switch (measurementStatus) {
       case MAXIMUM:
         this.sendCommand("F02");
@@ -136,9 +140,9 @@ public class GPM8212 implements Closeable {
    * Sets the volt range on the meter.
    *
    * @param voltRange the volt range setting to set
-   * @throws Exception on any exception sending the command
+   * @throws IOException on any exception sending the command
    */
-  public void setVoltRange(VoltRange voltRange) throws Exception {
+  public void setVoltRange(VoltRange voltRange) throws IOException {
     switch (voltRange) {
       case V640:
         this.sendCommand("R00");
@@ -177,9 +181,9 @@ public class GPM8212 implements Closeable {
    * Sets the amp range on the meter.
    *
    * @param ampRange the amp range setting to set
-   * @throws Exception on any exception sending the command
+   * @throws IOException on any exception sending the command
    */
-  public void setAmpRange(AmpRange ampRange) throws Exception {
+  public void setAmpRange(AmpRange ampRange) throws IOException {
     switch (ampRange) {
       case A20_48:
         this.sendCommand("R08");
@@ -218,9 +222,9 @@ public class GPM8212 implements Closeable {
    * Gets the meter's voltage reading.
    *
    * @return the meter's voltage reading
-   * @throws Exception on any exception sending the command or receiving its response
+   * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getVoltage() throws Exception {
+  public String getVoltage() throws IOException {
     return this.sendCommandAndGetResults("V00");
   }
 
@@ -228,9 +232,9 @@ public class GPM8212 implements Closeable {
    * Gets the meter's current reading.
    *
    * @return the meter's current reading
-   * @throws Exception on any exception sending the command or receiving its response
+   * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getCurrent() throws Exception {
+  public String getCurrent() throws IOException {
     return this.sendCommandAndGetResults("V01");
   }
 
@@ -238,9 +242,9 @@ public class GPM8212 implements Closeable {
    * Gets the meter's watt reading.
    *
    * @return the meter's watt reading
-   * @throws Exception on any exception sending the command or receiving its response
+   * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getWatt() throws Exception {
+  public String getWatt() throws IOException {
     return this.sendCommandAndGetResults("V02");
   }
 
@@ -248,9 +252,9 @@ public class GPM8212 implements Closeable {
    * Gets the meter's power factor (PF) reading.
    *
    * @return the meter's PF reading
-   * @throws Exception on any exception sending the command or receiving its response
+   * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getPf() throws Exception {
+  public String getPf() throws IOException {
     return this.sendCommandAndGetResults("V03");
   }
 
@@ -258,9 +262,9 @@ public class GPM8212 implements Closeable {
    * Gets the meter's frequency (Hz) reading.
    *
    * @return the meter's Hz reading
-   * @throws Exception on any exception sending the command or receiving its response
+   * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getHz() throws Exception {
+  public String getHz() throws IOException {
     return this.sendCommandAndGetResults("V04");
   }
 
@@ -268,14 +272,14 @@ public class GPM8212 implements Closeable {
    * Sends the given command to the meter.
    *
    * @param command the command to send
-   * @throws Exception on any exception sending the command
+   * @throws IOException on any exception sending the command
    */
-  private void sendCommand(String command) throws Exception {
+  private void sendCommand(String command) throws IOException {
     for (byte c : command.getBytes()) {
-      this.port.sendSingleData((char) c);
+      this.outputStream.write(c);
     }
 
-    this.port.sendSingleData(STOP_CHARACTER);
+    this.outputStream.write(STOP_CHARACTER);
   }
   
 
@@ -284,16 +288,16 @@ public class GPM8212 implements Closeable {
    *
    * @param command the command to send
    * @return the meter's response to the given command
-   * @throws Exception on any exception sending the command or receiving its response
+   * @throws IOException on any exception sending the command or receiving its response
    */
-  private String sendCommandAndGetResults(String command) throws Exception {
+  private String sendCommandAndGetResults(String command) throws IOException {
     this.sendCommand(command);
 
     StringBuilder builder = new StringBuilder();
 
     char next;
 
-    while ((next = this.port.receiveSingleChar()) != STOP_CHARACTER) {
+    while ((next = (char) this.inputStream.read()) != STOP_CHARACTER) {
       builder.append(next);
     }
 
@@ -302,161 +306,28 @@ public class GPM8212 implements Closeable {
 
   @Override
   public void close() throws IOException {
+    IOException inputStreamCloseException = null;
+
     try {
-      this.port.close();
-    } catch (Exception e) {
-      throw new IOException(e);
-    }
-  }
-
-  /**
-   * Constructs and returns a new {@link Builder} for making a {@link GPM8212} object.
-   *
-   * @return a {@link Builder} for making a {@link GPM8212} object
-   * @throws Exception on {@link Exception}s from {@link Parameters}' constructor
-   */
-  public static Builder builder() throws Exception {
-    return new Builder();
-  }
-
-  /**
-   * A utility class for building instances of {@link GPM8212}.
-   *
-   * @author Brian Oppenheim
-   */
-  public static class Builder {
-    /** parameters of the {@link Com} to be created for the {@link GPM8212} */
-    private Parameters parameters;
-
-    /**
-     * Constructs a new Builder object.
-     *
-     * @throws Exception on {@link Exception}s from {@link Parameters}' constructor
-     */
-    public Builder() throws Exception {
-      this.parameters = new Parameters();
+      this.inputStream.close();
+    } catch (IOException e) {
+      inputStreamCloseException = e;
     }
 
-    /**
-     * 
-     * @param baudRate
-     * @return this {@link Builder}
-     */
-    public Builder withBaudRate(int baudRate) {
-      Preconditions.checkArgument(baudRate > 0, "Baud rate must be greater than 0.");
-      this.parameters.setBaudRate(Integer.toString(baudRate));
-      return this;
-    }
+    try {
+      this.outputStream.close();
+    } catch (IOException e) {
+      if (inputStreamCloseException == null) {
+        throw new IOException(e);
+      }
 
-    /**
-     * 
-     * @param byteSize
-     * @return this {@link Builder}
-     */
-    public Builder withByteSize(String byteSize) {
-      this.parameters.setByteSize(Preconditions.checkNotNull(byteSize));
-      return this;
-    }
-
-    /**
-     * 
-     * @param parity
-     * @return this {@link Builder}
-     */
-    public Builder withParity(String parity) {
-      this.parameters.setParity(Preconditions.checkNotNull(parity));
-      return this;
-    }
-
-    /**
-     * 
-     * @param port
-     * @return this {@link Builder}
-     */
-    public Builder withPort(String port) {
-      this.parameters.setPort(Preconditions.checkNotNull(port));
-      return this;
-    }
-
-    /**
-     * 
-     * @param readInterval
-     * @return this {@link Builder}
-     */
-    public Builder withReadInterval(int readInterval) {
-      this.parameters.setReadInterval(readInterval);
-      return this;
-    }
-
-    /**
-     * 
-     * @param readTotalConstant
-     * @return this {@link Builder}
-     */
-    public Builder withReadTotalConstant(int readTotalConstant) {
-      this.parameters.setReadTotalConstant(readTotalConstant);
-      return this;
-    }
-
-    /**
-     * 
-     * @param readTotalMultiplier
-     * @return this {@link Builder}
-     */
-    public Builder withReadTotalMultiplier(int readTotalMultiplier) {
-      this.parameters.setReadTotalMultiplier(readTotalMultiplier);
-      return this;
-    }
-
-    /**
-     * 
-     * @param stopBits
-     * @return this {@link Builder}
-     */
-    public Builder withStopBits(String stopBits) {
-      this.parameters.setStopBits(Preconditions.checkNotNull(stopBits));
-      return this;
-    }
-
-    /**
-     * 
-     * @param writeTotalConstant
-     * @return this {@link Builder}
-     */
-    public Builder withWriteTotalConstant(int writeTotalConstant) {
-      this.parameters.setWriteTotalConstant(writeTotalConstant);
-      return this;
-    }
-
-    /**
-     * 
-     * @param writeTotalMultiplier
-     * @return this {@link Builder}
-     */
-    public Builder withWriteTotalMultiplier(int writeTotalMultiplier) {
-      this.parameters.setWriteTotalMultiplier(writeTotalMultiplier);
-      return this;
-    }
-
-    /**
-     * 
-     * @param parameters
-     * @return this {@link Builder}
-     */
-    @SuppressWarnings("hiding") 
-    public Builder withComParameters(Parameters parameters) {
-      this.parameters = Preconditions.checkNotNull(parameters);
-      return this;
-    }
-
-    /**
-     * Constructs and returns a {@link GPM8212} object based on the state of this {@link Builder}.
-     *
-     * @return a {@link GPM8212} constructed based on the state of this {@link Builder}
-     * @throws Exception on {@link Exception}s from {@link Com}'s constructor
-     */
-    public GPM8212 build() throws Exception {
-      return new GPM8212(new Com(this.parameters));
+      throw new IOException("2 IOExceptions caused by close().\n\n" +
+                            "From closing the InputStream:\n" +
+                            Throwables.getStackTraceAsString(inputStreamCloseException) +
+                            "\n\n" +
+                            "From closing the OutputStream:\n" +
+                            Throwables.getStackTraceAsString(e));
     }
   }
 }
+

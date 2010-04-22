@@ -19,9 +19,12 @@
 
 package com.brianopp.gpm8212;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Date;
 
-import com.google.common.io.Closeables;
+import app.Com;
 
 /**
  * A simple driver class for getting {@link GPM8212} readings in CSV format on regular intervals.
@@ -33,17 +36,24 @@ public class PowerReaderToCsv {
   private static final int REPORT_INTERVAL = 1000;
 
   public static void main(String[] args) throws Exception {
-    final GPM8212 reader = GPM8212.builder()
+    Com com = new ComPortBuilder()
         .withBaudRate(9600)
         .withPort("COM1")
         .withStopBits("1")
         .withByteSize("8")
         .build();
+    InputStream inputStream = new ComInputStream(com);
+    OutputStream outputStream = new ComOutputStream(com);
+    final GPM8212 reader = new GPM8212(inputStream, outputStream);
 
     Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       @Override
       public void run() {
-        Closeables.closeQuietly(reader);
+        try {
+          reader.close();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     }));
 
@@ -64,3 +74,4 @@ public class PowerReaderToCsv {
     return (time / 86400000.0) + 25568.708333;
   }
 }
+
