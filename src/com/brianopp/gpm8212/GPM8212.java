@@ -19,7 +19,10 @@
 
 package com.brianopp.gpm8212;
 
-import java.util.Date;
+import java.io.Closeable;
+import java.io.IOException;
+
+import com.google.common.base.Preconditions;
 
 import app.Com;
 import app.Parameters;
@@ -30,7 +33,7 @@ import app.Parameters;
  * @author Brian Oppenheim
  */
 // TODO(brianopp): Document the string return values.
-public class GPM8212 {
+public class GPM8212 implements Closeable {
 
   /** Measurement reading modes. */
   public enum MeasurementStatus {MAXIMUM, MINIMUM, NORMAL}
@@ -274,6 +277,7 @@ public class GPM8212 {
 
     this.port.sendSingleData(STOP_CHARACTER);
   }
+  
 
   /**
    * Sends the given command to the meter and receives its response.
@@ -296,21 +300,163 @@ public class GPM8212 {
     return builder.toString();
   }
 
-  public static void main(String[] args) throws Exception {
-    Parameters parameters = new Parameters();
-    parameters.setBaudRate("9600");
-    parameters.setPort("COM1");
-    parameters.setStopBits("1");
-    parameters.setByteSize("8");
-    GPM8212 reader = new GPM8212(new Com(parameters));
-    
-    while (true) {
-      System.out.println(toExcelTime(new Date().getTime()) + ", " + reader.getCurrent());
-      Thread.sleep(1000);
+  @Override
+  public void close() throws IOException {
+    try {
+      this.port.close();
+    } catch (Exception e) {
+      throw new IOException(e);
     }
   }
 
-  private static double toExcelTime(long time) {
-    return (time / 86400000.0) + 25569.0 - 0.291667;
+  /**
+   * Constructs and returns a new {@link Builder} for making a {@link GPM8212} object.
+   *
+   * @return a {@link Builder} for making a {@link GPM8212} object
+   * @throws Exception on {@link Exception}s from {@link Parameters}' constructor
+   */
+  public static Builder builder() throws Exception {
+    return new Builder();
+  }
+
+  /**
+   * A utility class for building instances of {@link GPM8212}.
+   *
+   * @author Brian Oppenheim
+   */
+  public static class Builder {
+    /** parameters of the {@link Com} to be created for the {@link GPM8212} */
+    private Parameters parameters;
+
+    /**
+     * Constructs a new Builder object.
+     *
+     * @throws Exception on {@link Exception}s from {@link Parameters}' constructor
+     */
+    public Builder() throws Exception {
+      this.parameters = new Parameters();
+    }
+
+    /**
+     * 
+     * @param baudRate
+     * @return this {@link Builder}
+     */
+    public Builder withBaudRate(int baudRate) {
+      Preconditions.checkArgument(baudRate > 0, "Baud rate must be greater than 0.");
+      this.parameters.setBaudRate(Integer.toString(baudRate));
+      return this;
+    }
+
+    /**
+     * 
+     * @param byteSize
+     * @return this {@link Builder}
+     */
+    public Builder withByteSize(String byteSize) {
+      this.parameters.setByteSize(Preconditions.checkNotNull(byteSize));
+      return this;
+    }
+
+    /**
+     * 
+     * @param parity
+     * @return this {@link Builder}
+     */
+    public Builder withParity(String parity) {
+      this.parameters.setParity(Preconditions.checkNotNull(parity));
+      return this;
+    }
+
+    /**
+     * 
+     * @param port
+     * @return this {@link Builder}
+     */
+    public Builder withPort(String port) {
+      this.parameters.setPort(Preconditions.checkNotNull(port));
+      return this;
+    }
+
+    /**
+     * 
+     * @param readInterval
+     * @return this {@link Builder}
+     */
+    public Builder withReadInterval(int readInterval) {
+      this.parameters.setReadInterval(readInterval);
+      return this;
+    }
+
+    /**
+     * 
+     * @param readTotalConstant
+     * @return this {@link Builder}
+     */
+    public Builder withReadTotalConstant(int readTotalConstant) {
+      this.parameters.setReadTotalConstant(readTotalConstant);
+      return this;
+    }
+
+    /**
+     * 
+     * @param readTotalMultiplier
+     * @return this {@link Builder}
+     */
+    public Builder withReadTotalMultiplier(int readTotalMultiplier) {
+      this.parameters.setReadTotalMultiplier(readTotalMultiplier);
+      return this;
+    }
+
+    /**
+     * 
+     * @param stopBits
+     * @return this {@link Builder}
+     */
+    public Builder withStopBits(String stopBits) {
+      this.parameters.setStopBits(Preconditions.checkNotNull(stopBits));
+      return this;
+    }
+
+    /**
+     * 
+     * @param writeTotalConstant
+     * @return this {@link Builder}
+     */
+    public Builder withWriteTotalConstant(int writeTotalConstant) {
+      this.parameters.setWriteTotalConstant(writeTotalConstant);
+      return this;
+    }
+
+    /**
+     * 
+     * @param writeTotalMultiplier
+     * @return this {@link Builder}
+     */
+    public Builder withWriteTotalMultiplier(int writeTotalMultiplier) {
+      this.parameters.setWriteTotalMultiplier(writeTotalMultiplier);
+      return this;
+    }
+
+    /**
+     * 
+     * @param parameters
+     * @return this {@link Builder}
+     */
+    @SuppressWarnings("hiding") 
+    public Builder withComParameters(Parameters parameters) {
+      this.parameters = Preconditions.checkNotNull(parameters);
+      return this;
+    }
+
+    /**
+     * Constructs and returns a {@link GPM8212} object based on the state of this {@link Builder}.
+     *
+     * @return a {@link GPM8212} constructed based on the state of this {@link Builder}
+     * @throws Exception on {@link Exception}s from {@link Com}'s constructor
+     */
+    public GPM8212 build() throws Exception {
+      return new GPM8212(new Com(this.parameters));
+    }
   }
 }
