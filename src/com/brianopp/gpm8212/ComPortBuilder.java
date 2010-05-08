@@ -24,13 +24,13 @@ import app.Parameters;
 
 import com.google.common.base.Preconditions;
 
-
 /**
  * A utility class for building {@link Com} objects.
  *
  * @author Brian Oppenheim
  */
 public class ComPortBuilder {
+
   /** parameters of the {@link Com} to be created for the {@link GPM8212} */
   private Parameters parameters;
   
@@ -165,3 +165,4 @@ public class ComPortBuilder {
     return new Com(this.parameters);
   }
 }
+
