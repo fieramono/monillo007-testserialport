@@ -23,6 +23,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 
 import com.google.common.base.Throwables;
 
@@ -31,7 +32,6 @@ import com.google.common.base.Throwables;
  *
  * @author Brian Oppenheim
  */
-// TODO(brianopp): Document the string return values.
 public class GPM8212 implements Closeable {
 
   /** Measurement reading modes. */
@@ -224,8 +224,8 @@ public class GPM8212 implements Closeable {
    * @return the meter's voltage reading
    * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getVoltage() throws IOException {
-    return this.sendCommandAndGetResults("V00");
+  public BigDecimal getVoltage() throws IOException {
+    return new BigDecimal(this.sendCommandAndGetResults("V00"));
   }
 
   /**
@@ -234,8 +234,8 @@ public class GPM8212 implements Closeable {
    * @return the meter's current reading
    * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getCurrent() throws IOException {
-    return this.sendCommandAndGetResults("V01");
+  public BigDecimal getCurrent() throws IOException {
+    return new BigDecimal(this.sendCommandAndGetResults("V01"));
   }
 
   /**
@@ -244,8 +244,8 @@ public class GPM8212 implements Closeable {
    * @return the meter's watt reading
    * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getWatt() throws IOException {
-    return this.sendCommandAndGetResults("V02");
+  public BigDecimal getWatt() throws IOException {
+    return new BigDecimal(this.sendCommandAndGetResults("V02"));
   }
 
   /**
@@ -254,8 +254,8 @@ public class GPM8212 implements Closeable {
    * @return the meter's PF reading
    * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getPf() throws IOException {
-    return this.sendCommandAndGetResults("V03");
+  public BigDecimal getPf() throws IOException {
+    return new BigDecimal(this.sendCommandAndGetResults("V03"));
   }
 
   /**
@@ -264,8 +264,8 @@ public class GPM8212 implements Closeable {
    * @return the meter's Hz reading
    * @throws IOException on any exception sending the command or receiving its response
    */
-  public String getHz() throws IOException {
-    return this.sendCommandAndGetResults("V04");
+  public BigDecimal getHz() throws IOException {
+    return new BigDecimal(this.sendCommandAndGetResults("V04"));
   }
 
   /**
